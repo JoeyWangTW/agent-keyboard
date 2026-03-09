@@ -6,16 +6,15 @@
         compatible = "zmk,keymap";
 
         default_layer {
-            // Full 6x10 matrix test. Each key outputs a unique character
-            // so you can identify which matrix positions your 15 keys are on.
-            // Row 0: 1-9,0  Row 1: Q-P  Row 2: A-;  Row 3: Z-/  Row 4: F1-F10  Row 5: F11-F20
+            // -----------------------------------------
+            // |  1  |  2  |  3  |  4  |  5  |
+            // |  Q  |  W  |  E  |  R  |  T  |
+            // |  A  |  S  |  D  |  F  |  G  |
+            // -----------------------------------------
             bindings = <
-                &kp N1  &kp N2  &kp N3  &kp N4  &kp N5  &kp N6  &kp N7  &kp N8  &kp N9  &kp N0
-                &kp Q   &kp W   &kp E   &kp R   &kp T   &kp Y   &kp U   &kp I   &kp O   &kp P
-                &kp A   &kp S   &kp D   &kp F   &kp G   &kp H   &kp J   &kp K   &kp L   &kp SEMI
-                &kp Z   &kp X   &kp C   &kp V   &kp B   &kp N   &kp M   &kp COMMA &kp DOT &kp FSLH
-                &kp F1  &kp F2  &kp F3  &kp F4  &kp F5  &kp F6  &kp F7  &kp F8  &kp F9  &kp F10
-                &kp F11 &kp F12 &kp F13 &kp F14 &kp F15 &kp F16 &kp F17 &kp F18 &kp F19 &kp F20
+                &kp N1  &kp N2  &kp N3  &kp N4  &kp N5
+                &kp Q   &kp W   &kp E   &kp R   &kp T
+                &kp A   &kp S   &kp D   &kp F   &kp G
             >;
         };
     };
