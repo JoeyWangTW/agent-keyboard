@@ -1,20 +1,86 @@
 #include <behaviors.dtsi>
 #include <dt-bindings/zmk/keys.h>
+#include <dt-bindings/zmk/bt.h>
+#include <dt-bindings/zmk/mouse.h>
+
+#define GRID(n) LC(LA(LG(n)))
 
 / {
+    macros {
+        grid5: grid5 {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&macro_press &kp LCTRL &kp LALT &kp LGUI>
+                     , <&macro_tap &kp N5>
+                     , <&macro_release &kp LGUI &kp LALT &kp LCTRL>;
+        };
+    };
+
+    behaviors {
+        /* Hold = momentary layer 1, Tap = grid(5) aka Ctrl+Alt+Cmd+5 */
+        ht_l1_g5: ht_l1_g5 {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            tapping-term-ms = <200>;
+            bindings = <&mo>, <&grid5>;
+        };
+
+        /* Single/double tap = grid(4), triple tap = toggle layer 2 */
+        td_g4_l2: td_g4_l2 {
+            compatible = "zmk,behavior-tap-dance";
+            #binding-cells = <0>;
+            tapping-term-ms = <300>;
+            bindings = <&kp GRID(N4)>, <&kp GRID(N4)>, <&tog 2>;
+        };
+
+        /* Single/double tap = right click, triple tap = toggle layer 2 off */
+        td_rmb_l0: td_rmb_l0 {
+            compatible = "zmk,behavior-tap-dance";
+            #binding-cells = <0>;
+            tapping-term-ms = <300>;
+            bindings = <&mkp RCLK>, <&mkp RCLK>, <&tog 2>;
+        };
+    };
+
     keymap {
         compatible = "zmk,keymap";
 
         default_layer {
-            // -----------------------------------------
-            // |  1  |  2  |  3  |  4  |  5  |
-            // |  Q  |  W  |  E  |  R  |  T  |
-            // |  A  |  S  |  D  |  F  |  G  |
-            // -----------------------------------------
+            // -----------------------------------------------
+            // | BT1  | BT2  | BTCLR |      |      |
+            // | G(1) | G(2) | G(3)  | TD4  |      |
+            // | HG5  | G(6) | G(7)  | G(8) |      |
+            // -----------------------------------------------
             bindings = <
-                &kp N1  &kp N2  &kp N3  &kp N4  &kp N5
-                &kp Q   &kp W   &kp E   &kp R   &kp T
-                &kp A   &kp S   &kp D   &kp F   &kp G
+                &bt BT_SEL 0   &bt BT_SEL 1    &bt BT_CLR       &none        &none
+                &kp GRID(N1)   &kp GRID(N2)    &kp GRID(N3)     &td_g4_l2    &none
+                &ht_l1_g5 1 0  &kp GRID(N6)    &kp GRID(N7)     &kp GRID(N8) &none
+            >;
+        };
+
+        macro_layer {
+            // -----------------------------------------------
+            // |      |      |       |      |      |
+            // | G(0) | G(9) |  UP   | ESC  |      |
+            // | ---- | RGUI | DOWN  | RET  |      |
+            // -----------------------------------------------
+            bindings = <
+                &trans          &trans          &trans           &trans       &trans
+                &kp GRID(N0)   &kp GRID(N9)   &kp UP           &kp ESC      &none
+                &trans          &kp RGUI        &kp DOWN         &kp RET      &none
+            >;
+        };
+
+        mouse_layer {
+            // -----------------------------------------------
+            // |      |      |       |      |      |
+            // | PGUP | LMB  | MS_UP | TDRMB|      |
+            // | PGDN | MS_L | MS_DN | MS_R |      |
+            // -----------------------------------------------
+            bindings = <
+                &trans         &trans          &trans            &trans       &trans
+                &kp PG_UP      &mkp LCLK      &mmv MOVE_UP     &td_rmb_l0   &none
+                &kp PG_DN      &mmv MOVE_LEFT  &mmv MOVE_DOWN   &mmv MOVE_RIGHT &none
             >;
         };
     };
