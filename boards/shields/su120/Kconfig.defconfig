@@ -1,0 +1,6 @@
+if SHIELD_SU120
+
+config ZMK_KEYBOARD_NAME
+    default "SU120"
+
+endif

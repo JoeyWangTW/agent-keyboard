@@ -1,0 +1,23 @@
+#include <behaviors.dtsi>
+#include <dt-bindings/zmk/keys.h>
+
+/ {
+    keymap {
+        compatible = "zmk,keymap";
+
+        default_layer {
+            // -----------------------------------------
+            // |  Q  |  W  |  E  |  R  |  T  |
+            // |  A  |  S  |  D  |  F  |  G  |
+            // |  Z  |  X  |  C  |  V  |  B  |
+            // -----------------------------------------
+            // Test layout: each key outputs a unique letter
+            // so you can verify all 15 keys work.
+            bindings = <
+                &kp Q  &kp W  &kp E  &kp R  &kp T
+                &kp A  &kp S  &kp D  &kp F  &kp G
+                &kp Z  &kp X  &kp C  &kp V  &kp B
+            >;
+        };
+    };
+};
