@@ -2,3 +2,5 @@
 include:
   - board: nice_nano
     shield: su120
+  - board: nice_nano
+    shield: settings_reset
