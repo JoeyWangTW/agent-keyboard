@@ -51,11 +51,13 @@
             // | G(1) | G(2) | G(3)  | TD4  |      |
             // | HG5  | G(6) | G(7)  | G(8) |      |
             // -----------------------------------------------
+            // Left encoder: volume    Right encoder: brightness
             bindings = <
                 &bt BT_SEL 0   &bt BT_SEL 1    &bt BT_CLR       &none        &none
                 &kp GRID(N1)   &kp GRID(N2)    &kp GRID(N3)     &td_g4_l2    &none
                 &ht_l1_g5 1 0  &kp GRID(N6)    &kp GRID(N7)     &kp GRID(N8) &none
             >;
+            sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN &inc_dec_kp C_BRI_UP C_BRI_DN>;
         };
 
         macro_layer {
@@ -69,6 +71,7 @@
                 &kp GRID(N0)   &kp GRID(N9)   &kp UP           &kp ESC      &none
                 &trans          &kp RGUI        &kp DOWN         &kp RET      &none
             >;
+            sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN &inc_dec_kp C_BRI_UP C_BRI_DN>;
         };
 
         mouse_layer {
@@ -82,6 +85,7 @@
                 &kp PG_UP      &mkp LCLK      &mmv MOVE_UP     &td_rmb_l0   &none
                 &kp PG_DN      &mmv MOVE_LEFT  &mmv MOVE_DOWN   &mmv MOVE_RIGHT &none
             >;
+            sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN &inc_dec_kp C_BRI_UP C_BRI_DN>;
         };
     };
 };
