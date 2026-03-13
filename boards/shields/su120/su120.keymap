@@ -2,6 +2,7 @@
 #include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/bt.h>
 #include <dt-bindings/zmk/mouse.h>
+#include <dt-bindings/zmk/pointing.h>
 
 #define GRID(n) LC(LA(LG(n)))
 
@@ -33,6 +34,13 @@
             bindings = <&kp GRID(N4)>, <&kp GRID(N4)>, <&tog 2>;
         };
 
+        /* Rotary encoder mouse scroll */
+        rot_msc: sensor_rotate_msc {
+            compatible = "zmk,behavior-sensor-rotate-var";
+            #sensor-binding-cells = <2>;
+            bindings = <&msc>, <&msc>;
+        };
+
         /* Single/double tap = right click, triple tap = toggle layer 2 off */
         td_rmb_l0: td_rmb_l0 {
             compatible = "zmk,behavior-tap-dance";
@@ -57,7 +65,7 @@
                 &kp GRID(N1)   &kp GRID(N2)    &kp GRID(N3)     &td_g4_l2    &none
                 &ht_l1_g5 1 0  &kp GRID(N6)    &kp GRID(N7)     &kp GRID(N8) &none
             >;
-            sensor-bindings = <&inc_dec_kp C_VOL_DN C_VOL_UP &inc_dec_msc SCRL_UP SCRL_DOWN>;
+            sensor-bindings = <&inc_dec_kp C_VOL_DN C_VOL_UP &rot_msc SCRL_UP SCRL_DOWN>;
         };
 
         macro_layer {
@@ -71,7 +79,7 @@
                 &kp GRID(N0)   &kp GRID(N9)   &kp UP           &kp ESC      &none
                 &trans          &kp RGUI        &kp DOWN         &kp RET      &none
             >;
-            sensor-bindings = <&inc_dec_kp C_VOL_DN C_VOL_UP &inc_dec_msc SCRL_UP SCRL_DOWN>;
+            sensor-bindings = <&inc_dec_kp C_VOL_DN C_VOL_UP &rot_msc SCRL_UP SCRL_DOWN>;
         };
 
         mouse_layer {
@@ -85,7 +93,7 @@
                 &kp PG_UP      &mkp LCLK      &mmv MOVE_UP     &td_rmb_l0   &none
                 &kp PG_DN      &mmv MOVE_LEFT  &mmv MOVE_DOWN   &mmv MOVE_RIGHT &none
             >;
-            sensor-bindings = <&inc_dec_kp C_VOL_DN C_VOL_UP &inc_dec_msc SCRL_UP SCRL_DOWN>;
+            sensor-bindings = <&inc_dec_kp C_VOL_DN C_VOL_UP &rot_msc SCRL_UP SCRL_DOWN>;
         };
     };
 };
