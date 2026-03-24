@@ -15,6 +15,26 @@
                      , <&macro_tap &kp N5>
                      , <&macro_release &kp LGUI &kp LALT &kp LCTRL>;
         };
+
+        grid8: grid8 {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&macro_press &kp LCTRL &kp LALT &kp LGUI>
+                     , <&macro_tap &kp N8>
+                     , <&macro_release &kp LGUI &kp LALT &kp LCTRL>;
+        };
+
+        /* Hold: send examine-enter signal + activate layer 4
+           Release: deactivate layer 4 + send examine-exit signal */
+        examine_macro: examine_macro {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&macro_tap &kp GRID_FOCUS(F1)>
+                     , <&macro_press &mo 4>
+                     , <&macro_pause_for_release>
+                     , <&macro_release &mo 4>
+                     , <&macro_tap &kp GRID_FOCUS(F2)>;
+        };
     };
 
     behaviors {
@@ -32,6 +52,14 @@
             #binding-cells = <2>;
             tapping-term-ms = <200>;
             bindings = <&mo>, <&kp>;
+        };
+
+        /* Hold = examine macro (layer 4 + signals), Tap = grid(8) */
+        ht_exam_g8: ht_exam_g8 {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            tapping-term-ms = <200>;
+            bindings = <&examine_macro>, <&grid8>;
         };
 
         /* Single/double tap = grid(4), triple tap = toggle layer 2 */
@@ -58,15 +86,16 @@
             // -----------------------------------------------
             // | BT1  | BT2  |       |      |      |
             // | G(1) | G(2) | G(3)  | HF4  |      |
-            // | HG5  | G(6) | G(7)  | G(8) |      |
+            // | HG5  | G(6) | G(7)  | HE8  |      |
             // -----------------------------------------------
-            // Left encoder: volume    Right encoder: brightness
+            // Left encoder: volume    Right encoder: scroll
             // Hold HF4 = focus layer, Tap = grid(4)
+            // Hold HE8 = examine layer, Tap = grid(8)
             // BT_CLR moved to macro_layer (hold bottom-left)
             bindings = <
                 &bt BT_SEL 0   &bt BT_SEL 1    &none            &none        &none
                 &kp GRID(N1)   &kp GRID(N2)    &kp GRID(N3)     &ht_l3_g4 3 GRID(N4) &none
-                &ht_l1_g5 1 0  &kp GRID(N6)    &kp GRID(N7)     &kp GRID(N8) &none
+                &ht_l1_g5 1 0  &kp GRID(N6)    &kp GRID(N7)     &ht_exam_g8 0 0 &none
             >;
             sensor-bindings = <&inc_dec_kp C_VOL_DN C_VOL_UP &inc_dec_kp LC(LA(LG(UP))) LC(LA(LG(DOWN)))>;
         };
@@ -112,6 +141,23 @@
                 &kp GRID_FOCUS(N5)     &kp GRID_FOCUS(N6)     &kp GRID_FOCUS(N7)     &kp GRID_FOCUS(N8) &none
             >;
             sensor-bindings = <&inc_dec_kp C_VOL_DN C_VOL_UP &inc_dec_kp LC(LA(LG(UP))) LC(LA(LG(DOWN)))>;
+        };
+
+        examine_layer {
+            // -----------------------------------------------
+            // |      |      |       |      |      |
+            // |  --  |  --  |  --   | ---- |      |
+            // |  --  |  --  |  --   | ---- |      |
+            // -----------------------------------------------
+            // Grid keys pass through to layer 0 (Hammerspoon checks examine mode)
+            // Left encoder: zoom (Ctrl+Alt+Cmd+Shift+minus/equal)
+            // Right encoder: scroll (same as default)
+            bindings = <
+                &trans         &trans          &trans           &trans       &trans
+                &trans         &trans          &trans           &trans       &none
+                &trans         &trans          &trans           &trans       &none
+            >;
+            sensor-bindings = <&inc_dec_kp GRID_FOCUS(MINUS) GRID_FOCUS(EQUAL) &inc_dec_kp LC(LA(LG(UP))) LC(LA(LG(DOWN)))>;
         };
     };
 };

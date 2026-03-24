@@ -63,55 +63,137 @@ local grid = {
 }
 
 local mods = {"ctrl", "alt", "cmd"}
+local focusMods = {"ctrl", "alt", "cmd", "shift"}
+local wf = hs.window.filter.new():setCurrentSpace(true):setDefaultFilter({})
+
+
+-- ── Examine Mode State ──
+-- Hold bottom-right key to examine: maximize a grid window + zoom in,
+-- everything reverts when the key is released.
+local examineMode = false
+local savedWindowStates = {}  -- { [winId] = { frame=rect, zoomSteps=0 } }
+
+local function findWindowAtCell(rect)
+  local screen = getMacScreen()
+  if not screen then return nil end
+  local sf = screen:frame()
+  local allWindows = wf:getWindows(hs.window.filter.sortByFocusedLast)
+
+  local tx = sf.x + rect.x * sf.w
+  local ty = sf.y + rect.y * sf.h
+  local tw = rect.w * sf.w
+  local th = rect.h * sf.h
+
+  for _, win in ipairs(allWindows) do
+    local f = win:frame()
+    local cx = f.x + f.w / 2
+    local cy = f.y + f.h / 2
+    if cx >= tx and cx < tx + tw and cy >= ty and cy < ty + th then
+      return win
+    end
+  end
+  return nil
+end
+
+local function exitExamineMode()
+  for winId, state in pairs(savedWindowStates) do
+    local win = hs.window.get(winId)
+    if win then
+      -- Reverse zoom steps
+      if state.zoomSteps > 0 then
+        for _ = 1, state.zoomSteps do
+          hs.eventtap.keyStroke({"cmd"}, "-", 0, win:application())
+        end
+      elseif state.zoomSteps < 0 then
+        for _ = 1, -state.zoomSteps do
+          hs.eventtap.keyStroke({"cmd"}, "=", 0, win:application())
+        end
+      end
+      -- Restore original frame
+      win:setFrame(state.frame, 0)
+    end
+  end
+  savedWindowStates = {}
+  examineMode = false
+end
+
+-- Ctrl+Alt+Cmd+Shift+F1 = examine mode enter (from ZMK examine_macro press)
+hs.hotkey.bind(focusMods, "f1", function()
+  examineMode = true
+  savedWindowStates = {}
+end)
+
+-- Ctrl+Alt+Cmd+Shift+F2 = examine mode exit (from ZMK examine_macro release)
+hs.hotkey.bind(focusMods, "f2", function()
+  exitExamineMode()
+end)
+
+-- Ctrl+Alt+Cmd+Shift+= / - = zoom signals from left encoder in examine layer
+hs.hotkey.bind(focusMods, "=", function()
+  local win = hs.window.focusedWindow()
+  if win and examineMode then
+    local winId = win:id()
+    if savedWindowStates[winId] then
+      savedWindowStates[winId].zoomSteps = savedWindowStates[winId].zoomSteps + 1
+    end
+  end
+  hs.eventtap.keyStroke({"cmd"}, "=", 0)
+end)
+
+hs.hotkey.bind(focusMods, "-", function()
+  local win = hs.window.focusedWindow()
+  if win and examineMode then
+    local winId = win:id()
+    if savedWindowStates[winId] then
+      savedWindowStates[winId].zoomSteps = savedWindowStates[winId].zoomSteps - 1
+    end
+  end
+  hs.eventtap.keyStroke({"cmd"}, "-", 0)
+end)
+
+
+-- ── Window Grid ──
+-- Ctrl+Alt+Cmd+1‑8: move window (normal) or maximize-at-position (examine mode)
 
 for i, rect in ipairs(grid) do
   hs.hotkey.bind(mods, tostring(i), function()
-    local win = hs.window.focusedWindow()
-    if not win then return end
-    local screen = getMacScreen()
-    if screen then
-      win:moveToScreen(screen)
-      win:moveToUnit(rect, 0)
+    if examineMode then
+      -- Find window at this grid cell and maximize it
+      local win = findWindowAtCell(rect)
+      if not win then return end
+      local winId = win:id()
+      if not savedWindowStates[winId] then
+        savedWindowStates[winId] = { frame = win:frame():copy(), zoomSteps = 0 }
+      end
+      win:maximize(0)
+      win:focus()
+    else
+      -- Normal: move focused window to this grid cell
+      local win = hs.window.focusedWindow()
+      if not win then return end
+      local screen = getMacScreen()
+      if screen then
+        win:moveToScreen(screen)
+        win:moveToUnit(rect, 0)
+      end
     end
+  end)
+end
+
+
+-- ── Focus Window at Grid Position ──
+-- Ctrl+Alt+Cmd+Shift+1‑8 focuses the window occupying that grid cell
+
+for i, rect in ipairs(grid) do
+  hs.hotkey.bind(focusMods, tostring(i), function()
+    local win = findWindowAtCell(rect)
+    if win then win:focus() end
   end)
 end
 
 
 -- ── Cycle Focus Through Grid Windows ──
 -- Ctrl+Alt+Cmd+0 focuses the next window occupying a grid cell (1→2→…→8→1)
--- Uses a window filter to avoid expensive hs.window.orderedWindows() calls
-
-local wf = hs.window.filter.new():setCurrentSpace(true):setDefaultFilter({})
-
-
--- ── Focus Window at Grid Position ──
--- Ctrl+Alt+Cmd+Shift+1‑8 focuses the window occupying that grid cell
-local focusMods = {"ctrl", "alt", "cmd", "shift"}
-
-for i, rect in ipairs(grid) do
-  hs.hotkey.bind(focusMods, tostring(i), function()
-    local screen = getMacScreen()
-    if not screen then return end
-    local sf = screen:frame()
-    local allWindows = wf:getWindows(hs.window.filter.sortByFocusedLast)
-
-    local tx = sf.x + rect.x * sf.w
-    local ty = sf.y + rect.y * sf.h
-    local tw = rect.w * sf.w
-    local th = rect.h * sf.h
-
-    for _, win in ipairs(allWindows) do
-      local f = win:frame()
-      local cx = f.x + f.w / 2
-      local cy = f.y + f.h / 2
-      if cx >= tx and cx < tx + tw and cy >= ty and cy < ty + th then
-        win:focus()
-        return
-      end
-    end
-  end)
-end
-
 
 local cycleIndex = 0
 
@@ -125,7 +207,6 @@ hs.hotkey.bind(mods, "0", function()
     cycleIndex = (cycleIndex % #grid) + 1
     local r = grid[cycleIndex]
 
-    -- Target cell bounds in absolute coordinates
     local tx = sf.x + r.x * sf.w
     local ty = sf.y + r.y * sf.h
     local tw = r.w * sf.w
