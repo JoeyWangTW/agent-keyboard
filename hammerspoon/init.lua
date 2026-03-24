@@ -82,6 +82,37 @@ end
 -- Uses a window filter to avoid expensive hs.window.orderedWindows() calls
 
 local wf = hs.window.filter.new():setCurrentSpace(true):setDefaultFilter({})
+
+
+-- ── Focus Window at Grid Position ──
+-- Ctrl+Alt+Cmd+Shift+1‑8 focuses the window occupying that grid cell
+local focusMods = {"ctrl", "alt", "cmd", "shift"}
+
+for i, rect in ipairs(grid) do
+  hs.hotkey.bind(focusMods, tostring(i), function()
+    local screen = getMacScreen()
+    if not screen then return end
+    local sf = screen:frame()
+    local allWindows = wf:getWindows(hs.window.filter.sortByFocusedLast)
+
+    local tx = sf.x + rect.x * sf.w
+    local ty = sf.y + rect.y * sf.h
+    local tw = rect.w * sf.w
+    local th = rect.h * sf.h
+
+    for _, win in ipairs(allWindows) do
+      local f = win:frame()
+      local cx = f.x + f.w / 2
+      local cy = f.y + f.h / 2
+      if cx >= tx and cx < tx + tw and cy >= ty and cy < ty + th then
+        win:focus()
+        return
+      end
+    end
+  end)
+end
+
+
 local cycleIndex = 0
 
 hs.hotkey.bind(mods, "0", function()
