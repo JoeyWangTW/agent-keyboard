@@ -153,31 +153,61 @@ end)
 
 
 -- ── Window Grid ──
--- Ctrl+Alt+Cmd+1‑8: move window (normal) or maximize-at-position (examine mode)
+-- Ctrl+Alt+Cmd+1‑8: move window (normal) or maximize-at-position (examine mode).
+-- Hold one grid key as an "anchor" (the window moves to that cell). While
+-- holding, press any other grid key to resize the window so it spans from
+-- the anchor cell to the pressed cell. Releasing the anchor clears the state.
+
+local anchorIndex = nil
+local anchorRect = nil
+
+local function calculateSpanRect(a, b)
+  local x = math.min(a.x, b.x)
+  local y = math.min(a.y, b.y)
+  local right = math.max(a.x + a.w, b.x + b.w)
+  local bottom = math.max(a.y + a.h, b.y + b.h)
+  return { x = x, y = y, w = right - x, h = bottom - y }
+end
 
 for i, rect in ipairs(grid) do
-  hs.hotkey.bind(mods, tostring(i), function()
-    if examineMode then
-      -- Find window at this grid cell and maximize it
-      local win = findWindowAtCell(rect)
-      if not win then return end
-      local winId = win:id()
-      if not savedWindowStates[winId] then
-        savedWindowStates[winId] = { frame = win:frame():copy(), zoomSteps = 0 }
+  hs.hotkey.bind(mods, tostring(i),
+    function()
+      if examineMode then
+        -- Find window at this grid cell and maximize it
+        local win = findWindowAtCell(rect)
+        if not win then return end
+        local winId = win:id()
+        if not savedWindowStates[winId] then
+          savedWindowStates[winId] = { frame = win:frame():copy(), zoomSteps = 0 }
+        end
+        win:maximize(0)
+        win:focus()
+      else
+        local win = hs.window.focusedWindow()
+        if not win then return end
+        local screen = getMacScreen()
+        if screen then
+          win:moveToScreen(screen)
+          if anchorIndex and anchorIndex ~= i then
+            -- Anchor already held: span from anchor cell to this cell.
+            win:moveToUnit(calculateSpanRect(anchorRect, rect), 0)
+          else
+            -- First press: this cell becomes the anchor.
+            anchorIndex = i
+            anchorRect = rect
+            win:moveToUnit(rect, 0)
+          end
+        end
       end
-      win:maximize(0)
-      win:focus()
-    else
-      -- Normal: move focused window to this grid cell
-      local win = hs.window.focusedWindow()
-      if not win then return end
-      local screen = getMacScreen()
-      if screen then
-        win:moveToScreen(screen)
-        win:moveToUnit(rect, 0)
+    end,
+    function()
+      -- Release: clear anchor only if this key is the current anchor.
+      if anchorIndex == i then
+        anchorIndex = nil
+        anchorRect = nil
       end
     end
-  end)
+  )
 end
 
 
