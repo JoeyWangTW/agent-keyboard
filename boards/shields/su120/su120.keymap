@@ -39,17 +39,16 @@
     };
 
     behaviors {
-        /* Encoder mouse-scroll. The msc behavior is continuous: each binding
-           parameter is a per-axis speed in units/sec. The driver reports at
-           ~60Hz, so default SCRL_VAL=10 gives 0.16 units per tick — too small
-           to ever cast to a non-zero int16 within a brief tap. We pass a much
-           larger speed (MOVE_Y(±200)) so each report emits ~3 wheel units, and
-           hold for ~50ms so a few reports fire per detent. */
+        /* Encoder mouse-scroll. msc is a continuous input device: speed
+           (the binding param) × trigger_period_ms / 1000 = units emitted
+           per ~16ms tick. We aim for ~1 wheel unit per encoder detent so
+           macOS scroll-acceleration doesn't blow up. speed 90 ⇒ ~1.4/tick;
+           tap-ms 18 lets exactly one tick fire per detent. */
         enc_scroll: enc_scroll {
             compatible = "zmk,behavior-sensor-rotate";
             #sensor-binding-cells = <0>;
-            bindings = <&msc MOVE_Y(-200)>, <&msc MOVE_Y(200)>;
-            tap-ms = <50>;
+            bindings = <&msc MOVE_Y(-90)>, <&msc MOVE_Y(90)>;
+            tap-ms = <18>;
         };
 
         /* Hold = momentary layer 1, Tap = grid(5) aka Ctrl+Alt+Cmd+5 */
