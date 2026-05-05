@@ -2,6 +2,7 @@
 #include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/bt.h>
 #include <dt-bindings/zmk/mouse.h>
+#include <dt-bindings/zmk/pointing.h>
 
 #define GRID(n) LC(LA(LG(n)))
 #define GRID_FOCUS(n) LC(LA(LG(LS(n))))
@@ -38,6 +39,13 @@
     };
 
     behaviors {
+        /* Encoder mouse-scroll: works as native HID scroll on iPhone & Mac */
+        enc_scroll: enc_scroll {
+            compatible = "zmk,behavior-sensor-rotate";
+            #sensor-binding-cells = <0>;
+            bindings = <&msc SCRL_DOWN>, <&msc SCRL_UP>;
+        };
+
         /* Hold = momentary layer 1, Tap = grid(5) aka Ctrl+Alt+Cmd+5 */
         ht_l1_g5: ht_l1_g5 {
             compatible = "zmk,behavior-hold-tap";
@@ -88,7 +96,7 @@
             // | G(1) | G(2) | G(3)  | HF4  |      |
             // | HG5  | G(6) | G(7)  | HE8  |      |
             // -----------------------------------------------
-            // Left encoder: volume    Right encoder: scroll
+            // Left encoder: HID scroll (iPhone & Mac)    Right encoder: Hammerspoon scroll (Mac only)
             // Hold HF4 = focus layer, Tap = grid(4)
             // Hold HE8 = examine layer, Tap = grid(8)
             // BT_CLR moved to macro_layer (hold bottom-left)
@@ -97,7 +105,7 @@
                 &kp GRID(N1)   &kp GRID(N2)    &kp GRID(N3)     &ht_l3_g4 3 GRID(N4) &none
                 &ht_l1_g5 1 0  &kp GRID(N6)    &kp GRID(N7)     &ht_exam_g8 0 0 &none
             >;
-            sensor-bindings = <&inc_dec_kp C_VOL_DN C_VOL_UP &inc_dec_kp LC(LA(LG(UP))) LC(LA(LG(DOWN)))>;
+            sensor-bindings = <&enc_scroll &inc_dec_kp LC(LA(LG(UP))) LC(LA(LG(DOWN)))>;
         };
 
         macro_layer {
@@ -111,7 +119,7 @@
                 &kp GRID(N0)   &kp GRID(N9)   &kp UP           &kp ESC      &none
                 &trans          &kp RGUI        &kp DOWN         &kp RET      &none
             >;
-            sensor-bindings = <&inc_dec_kp C_VOL_DN C_VOL_UP &inc_dec_kp LC(LA(LG(UP))) LC(LA(LG(DOWN)))>;
+            sensor-bindings = <&enc_scroll &inc_dec_kp LC(LA(LG(UP))) LC(LA(LG(DOWN)))>;
         };
 
         mouse_layer {
@@ -125,7 +133,7 @@
                 &kp PG_UP      &mkp LCLK      &mmv MOVE_UP     &td_rmb_l0   &none
                 &kp PG_DN      &mmv MOVE_LEFT  &mmv MOVE_DOWN   &mmv MOVE_RIGHT &none
             >;
-            sensor-bindings = <&inc_dec_kp C_VOL_DN C_VOL_UP &inc_dec_kp LC(LA(LG(UP))) LC(LA(LG(DOWN)))>;
+            sensor-bindings = <&enc_scroll &inc_dec_kp LC(LA(LG(UP))) LC(LA(LG(DOWN)))>;
         };
 
         focus_layer {
@@ -140,7 +148,7 @@
                 &kp GRID_FOCUS(N1)     &kp GRID_FOCUS(N2)     &kp GRID_FOCUS(N3)     &trans &none
                 &kp GRID_FOCUS(N5)     &kp GRID_FOCUS(N6)     &kp GRID_FOCUS(N7)     &kp GRID_FOCUS(N8) &none
             >;
-            sensor-bindings = <&inc_dec_kp C_VOL_DN C_VOL_UP &inc_dec_kp LC(LA(LG(UP))) LC(LA(LG(DOWN)))>;
+            sensor-bindings = <&enc_scroll &inc_dec_kp LC(LA(LG(UP))) LC(LA(LG(DOWN)))>;
         };
 
         examine_layer {
