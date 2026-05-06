@@ -47,24 +47,15 @@ struct nudge_step {
     uint16_t next_delay_ms;
 };
 
-/* Empirically iOS amplified our X moves ~2x and dampened Y to ~0.7x
- * (with default Pointer Control speed + acceleration). Tuned to land
- * cursor near the middle of an iPhone 14 (390x844 pts). */
+/* iOS scales differently for stepped vs single pushes. Stepped X
+ * lands cleanly; rapid stepped Y appears to be coalesced or
+ * gesture-recognized. Use stepped for X, a single bigger push for Y. */
 static const struct nudge_step steps[] = {
-    /* Walk +X right to ~mid-screen. */
+    /* Walk +X right (~60 sent → ~mid-screen). */
     {  30,   0,  0,  80 },
-    {  30,   0,  0,  120 },
-    /* Walk +Y down to ~mid-screen. */
-    {   0,  60,  0,  60 },
-    {   0,  60,  0,  60 },
-    {   0,  60,  0,  60 },
-    {   0,  60,  0,  60 },
-    {   0,  60,  0,  60 },
-    {   0,  60,  0,  60 },
-    {   0,  60,  0,  60 },
-    {   0,  60,  0,  60 },
-    {   0,  60,  0,  60 },
-    {   0,  60,  0,  150 },
+    {  30,   0,  0,  150 },
+    /* Single Y push down. */
+    {   0, 200,  0,  200 },
     /* Scroll wake, self-cancelling. */
     {   0,   0,  1,  120 },
     {   0,   0, -1,  120 },
