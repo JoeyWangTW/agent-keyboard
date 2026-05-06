@@ -1,17 +1,13 @@
 /*
  * agent-keyboard: wake iOS AssistiveTouch pointer routing on BLE reconnect.
  *
- * After encryption comes up on a BLE HID connection, schedule a tiny
- * net-zero mouse-movement report. iOS otherwise requires the user to
- * toggle AssistiveTouch off and on for pointer/scroll to re-engage on
- * each reconnect of a composite keyboard+pointer device. Sending an
- * active-but-cancelling pointer event appears to wake AT's
- * pointer-device evaluation without the manual toggle.
- *
- * ZMK doesn't export hid.h / hog.h to extra modules, so the report
- * struct and the send function are forward-declared here. They have
- * been stable for a while; if ZMK changes the layout, the build will
- * either fail at link time or produce a wrong-sized report.
+ * On security_changed (link encrypted), fire several pointer reports
+ * spread over ~3s. The first net-zero attempt didn't wake AT, so this
+ * version sends visible-but-self-cancelling movement + a tiny scroll
+ * jiggle. Visible reports double as a diagnostic: if the cursor moves
+ * on reconnect, the reports are landing and the issue is purely in
+ * iOS's AT engagement logic. If nothing visible happens, reports
+ * aren't reaching iOS and the problem is upstream of AT.
  */
 
 #include <zephyr/kernel.h>
@@ -33,45 +29,45 @@ struct zmk_hid_mouse_report_body {
 
 extern int zmk_hog_send_mouse_report(struct zmk_hid_mouse_report_body *body);
 
-static struct k_work_delayable nudge_work;
-
-static void send_nudge(struct k_work *work) {
-    ARG_UNUSED(work);
-
-    struct zmk_hid_mouse_report_body wake = {.d_x = 1};
-    int ret = zmk_hog_send_mouse_report(&wake);
+static void send_report(int16_t dx, int16_t dy, int16_t scroll_y) {
+    struct zmk_hid_mouse_report_body r = {
+        .d_x = dx, .d_y = dy, .d_scroll_y = scroll_y,
+    };
+    int ret = zmk_hog_send_mouse_report(&r);
     if (ret < 0) {
-        LOG_DBG("ios nudge wake report failed: %d", ret);
-        return;
-    }
-
-    struct zmk_hid_mouse_report_body cancel = {.d_x = -1};
-    ret = zmk_hog_send_mouse_report(&cancel);
-    if (ret < 0) {
-        LOG_DBG("ios nudge cancel report failed: %d", ret);
+        LOG_DBG("nudge report failed: %d", ret);
     }
 }
+
+/* Five passes; each pass moves the cursor right then left, net zero,
+ * with a tiny scroll wiggle that visibly cancels itself. The cursor
+ * should bounce briefly on reconnect — that's the signal AT can see. */
+static void nudge_pass_1(struct k_work *w) { send_report( 20,  0,  0); }
+static void nudge_pass_2(struct k_work *w) { send_report(-20,  0,  1); }
+static void nudge_pass_3(struct k_work *w) { send_report(  5,  5, -1); }
+static void nudge_pass_4(struct k_work *w) { send_report( -5, -5,  0); }
+static void nudge_pass_5(struct k_work *w) { send_report(  0,  0,  0); }
+
+static K_WORK_DELAYABLE_DEFINE(work_1, nudge_pass_1);
+static K_WORK_DELAYABLE_DEFINE(work_2, nudge_pass_2);
+static K_WORK_DELAYABLE_DEFINE(work_3, nudge_pass_3);
+static K_WORK_DELAYABLE_DEFINE(work_4, nudge_pass_4);
+static K_WORK_DELAYABLE_DEFINE(work_5, nudge_pass_5);
 
 static void security_changed(struct bt_conn *conn, bt_security_t level,
                              enum bt_security_err err) {
     ARG_UNUSED(conn);
-
-    if (err) {
+    if (err || level < BT_SECURITY_L2) {
         return;
     }
-    if (level >= BT_SECURITY_L2) {
-        k_work_reschedule(&nudge_work,
-                          K_MSEC(CONFIG_ZMK_AGENT_IOS_POINTER_NUDGE_DELAY_MS));
-    }
+    /* Spread across iOS's likely AT-engagement window. */
+    k_work_reschedule(&work_1, K_MSEC(300));
+    k_work_reschedule(&work_2, K_MSEC(600));
+    k_work_reschedule(&work_3, K_MSEC(1200));
+    k_work_reschedule(&work_4, K_MSEC(1500));
+    k_work_reschedule(&work_5, K_MSEC(2500));
 }
 
 BT_CONN_CB_DEFINE(agent_ios_nudge_cb) = {
     .security_changed = security_changed,
 };
-
-static int agent_ios_nudge_init(void) {
-    k_work_init_delayable(&nudge_work, send_nudge);
-    return 0;
-}
-
-SYS_INIT(agent_ios_nudge_init, APPLICATION, 90);
