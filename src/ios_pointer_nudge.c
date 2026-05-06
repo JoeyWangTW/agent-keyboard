@@ -2,21 +2,13 @@
  * agent-keyboard: wake iOS AssistiveTouch pointer/scroll routing on
  * BLE reconnect, without forcing the user to toggle AT off and on.
  *
- * On security_changed (link encrypted), schedule a small burst of
- * pointer activity:
- *   1. Push the AT cursor away from any idle-parked corner toward
- *      the middle of the screen, where it will be over scrollable
- *      content in most apps. Movement is relative + iOS clamps at
- *      screen edges, so a (+200, +400) push lands in mid-screen on
- *      typical iPhone sizes regardless of starting position.
- *   2. Fire a couple of self-cancelling scroll ticks so iOS's
- *      pointer-routing path sees scroll activity from us.
+ * Walks the AT cursor to mid-screen via a chain of small per-axis
+ * relative motions, then fires a self-cancelling scroll wake. Single
+ * large diagonal motions appear to get partially eaten by iOS gesture
+ * recognition (Y advances but X doesn't), so we step instead.
  *
- * After this, encoder scroll works without the user having to toggle
- * AssistiveTouch off and on on each reconnect.
- *
- * The cursor visibly drifts toward mid-screen on every iPhone
- * reconnect — that's the cost of keeping AT routing engaged.
+ * After this burst, encoder scroll works without manually toggling
+ * AssistiveTouch on each reconnect.
  */
 
 #include <zephyr/kernel.h>
@@ -48,16 +40,47 @@ static void send_report(int16_t dx, int16_t dy, int16_t scroll_y) {
     }
 }
 
-#define DEF_PULSE(N, DX, DY, SY)                                               \
-    static void nudge_##N(struct k_work *w) { send_report(DX, DY, SY); }       \
-    static K_WORK_DELAYABLE_DEFINE(work_##N, nudge_##N)
+struct nudge_step {
+    int16_t dx;
+    int16_t dy;
+    int16_t sy;
+    uint16_t next_delay_ms;
+};
 
-/* Drive cursor into mid-screen, then wake scroll. */
-DEF_PULSE(a,  200,  400,  0);  /* push to middle */
-DEF_PULSE(b,    0,    0,  1);  /* scroll wake down */
-DEF_PULSE(c,    0,    0, -1);  /* scroll wake up */
-DEF_PULSE(d,    5,    5,  0);  /* small twitch keeps cursor visible */
-DEF_PULSE(e,    0,    0,  0);  /* idle */
+static const struct nudge_step steps[] = {
+    /* Walk +X across to mid-screen (~150 total). */
+    {  30,   0,  0,  60 },
+    {  30,   0,  0,  60 },
+    {  30,   0,  0,  60 },
+    {  30,   0,  0,  60 },
+    {  30,   0,  0,  100 },
+    /* Walk +Y down to mid-screen (~250 total). */
+    {   0,  50,  0,  60 },
+    {   0,  50,  0,  60 },
+    {   0,  50,  0,  60 },
+    {   0,  50,  0,  60 },
+    {   0,  50,  0,  150 },
+    /* Scroll wake, self-cancelling. */
+    {   0,   0,  1,  120 },
+    {   0,   0, -1,  120 },
+    /* Final idle. */
+    {   0,   0,  0,  0 },
+};
+
+static size_t step_index;
+static struct k_work_delayable step_work;
+
+static void run_step(struct k_work *w) {
+    ARG_UNUSED(w);
+    if (step_index >= ARRAY_SIZE(steps)) {
+        return;
+    }
+    const struct nudge_step *s = &steps[step_index++];
+    send_report(s->dx, s->dy, s->sy);
+    if (step_index < ARRAY_SIZE(steps) && s->next_delay_ms > 0) {
+        k_work_reschedule(&step_work, K_MSEC(s->next_delay_ms));
+    }
+}
 
 static void security_changed(struct bt_conn *conn, bt_security_t level,
                              enum bt_security_err err) {
@@ -65,13 +88,17 @@ static void security_changed(struct bt_conn *conn, bt_security_t level,
     if (err || level < BT_SECURITY_L2) {
         return;
     }
-    k_work_reschedule(&work_a, K_MSEC(400));
-    k_work_reschedule(&work_b, K_MSEC(700));
-    k_work_reschedule(&work_c, K_MSEC(900));
-    k_work_reschedule(&work_d, K_MSEC(1200));
-    k_work_reschedule(&work_e, K_MSEC(1800));
+    step_index = 0;
+    k_work_reschedule(&step_work, K_MSEC(500));
 }
 
 BT_CONN_CB_DEFINE(agent_ios_nudge_cb) = {
     .security_changed = security_changed,
 };
+
+static int agent_ios_nudge_init(void) {
+    k_work_init_delayable(&step_work, run_step);
+    return 0;
+}
+
+SYS_INIT(agent_ios_nudge_init, APPLICATION, 90);
