@@ -55,7 +55,7 @@ static const struct nudge_step steps[] = {
     {  30,   0,  0,  80 },
     {  30,   0,  0,  150 },
     /* Single Y push down. */
-    {   0, 200,  0,  200 },
+    {   0, 320,  0,  200 },
     /* Scroll wake, self-cancelling. */
     {   0,   0,  1,  120 },
     {   0,   0, -1,  120 },
