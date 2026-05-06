@@ -1,14 +1,17 @@
 /*
- * agent-keyboard: iOS AssistiveTouch pointer-routing diagnostic.
+ * agent-keyboard: wake iOS AssistiveTouch pointer/scroll routing on
+ * BLE reconnect, without forcing the user to toggle AT off and on.
  *
- * Final-answer diagnostic build: send unmistakably large pointer
- * activity at sustained intervals after each BLE security_changed.
- * If you see the cursor jump 200px right then back, or the page
- * scroll several ticks and unscroll on reconnect, our reports are
- * landing in iOS — meaning AT is gating scroll on a UI-level toggle
- * that no firmware activity can replicate. If you see nothing
- * visible at all, the reports aren't being delivered to iOS and
- * the problem is on the BLE/CCC subscription path.
+ * On security_changed (link encrypted), schedule a small burst of
+ * pointer activity over ~1.5s. Empirically a sustained burst of
+ * cursor movement plus self-cancelling scroll ticks is enough to
+ * wake iOS pointer routing on reconnect, after which scroll from
+ * the encoder works in the apps that respect HID scroll (Safari,
+ * Mail, Notes, X, scrollable Settings panes, etc.).
+ *
+ * The values here are a balance: small enough that the cursor
+ * bounce on reconnect is unobtrusive, large enough to reliably
+ * trip iOS's pointer-recognition path.
  */
 
 #include <zephyr/kernel.h>
@@ -40,18 +43,15 @@ static void send_report(int16_t dx, int16_t dy, int16_t scroll_y) {
     }
 }
 
-/* Loud, self-cancelling pulses. Unmistakably visible if delivered. */
 #define DEF_PULSE(N, DX, DY, SY)                                               \
     static void nudge_##N(struct k_work *w) { send_report(DX, DY, SY); }       \
     static K_WORK_DELAYABLE_DEFINE(work_##N, nudge_##N)
 
-DEF_PULSE(a,  200,    0,  0);
-DEF_PULSE(b, -200,    0,  3);
-DEF_PULSE(c,    0,  100, -3);
-DEF_PULSE(d,    0, -100,  0);
-DEF_PULSE(e,  150,    0,  3);
-DEF_PULSE(f, -150,    0, -3);
-DEF_PULSE(g,    0,    0,  0);
+/* Net-zero cursor displacement and net-zero scroll. */
+DEF_PULSE(a,   80,    0,  1);
+DEF_PULSE(b,  -80,    0,  0);
+DEF_PULSE(c,    0,   40, -1);
+DEF_PULSE(d,    0,  -40,  0);
 
 static void security_changed(struct bt_conn *conn, bt_security_t level,
                              enum bt_security_err err) {
@@ -59,14 +59,10 @@ static void security_changed(struct bt_conn *conn, bt_security_t level,
     if (err || level < BT_SECURITY_L2) {
         return;
     }
-    /* Sustained burst across iOS's likely subscription window. */
     k_work_reschedule(&work_a, K_MSEC(500));
-    k_work_reschedule(&work_b, K_MSEC(800));
-    k_work_reschedule(&work_c, K_MSEC(1500));
-    k_work_reschedule(&work_d, K_MSEC(1800));
-    k_work_reschedule(&work_e, K_MSEC(3000));
-    k_work_reschedule(&work_f, K_MSEC(3300));
-    k_work_reschedule(&work_g, K_MSEC(5000));
+    k_work_reschedule(&work_b, K_MSEC(700));
+    k_work_reschedule(&work_c, K_MSEC(1100));
+    k_work_reschedule(&work_d, K_MSEC(1300));
 }
 
 BT_CONN_CB_DEFINE(agent_ios_nudge_cb) = {
