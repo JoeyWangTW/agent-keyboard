@@ -1,0 +1,27 @@
+config ZMK_AGENT_IOS_POINTER_NUDGE
+	bool "Send a no-op mouse report on reconnect to wake iOS pointer routing"
+	depends on ZMK_BLE && ZMK_POINTING
+	default y
+	help
+	  iOS classifies BLE HID composite keyboard+mouse devices and tends
+	  to put AssistiveTouch's pointer routing to sleep across disconnects,
+	  forcing the user to toggle AssistiveTouch off and on for scroll to
+	  start working again on reconnect.
+
+	  When enabled, this option installs a Bluetooth security_changed
+	  callback that emits a tiny net-zero mouse-movement report shortly
+	  after each pairing / reconnect reaches encrypted state. macOS and
+	  Windows hosts are unaffected (the cursor moves 1px and back in
+	  one frame, imperceptibly). On iOS, it appears to wake AssistiveTouch
+	  pointer recognition without the manual toggle.
+
+config ZMK_AGENT_IOS_POINTER_NUDGE_DELAY_MS
+	int "Delay after security_changed before sending nudge (ms)"
+	depends on ZMK_AGENT_IOS_POINTER_NUDGE
+	default 1200
+	help
+	  Time to wait between the BLE link reaching encrypted state and
+	  emitting the nudge. iOS subscribes to the HID-input notification
+	  CCC after encryption is up; if the nudge fires before that
+	  subscription, the report is dropped. ~1s is comfortably past
+	  iOS's CCC-write window in practice.
