@@ -7,17 +7,31 @@
  * each reconnect of a composite keyboard+pointer device. Sending an
  * active-but-cancelling pointer event appears to wake AT's
  * pointer-device evaluation without the manual toggle.
+ *
+ * ZMK doesn't export hid.h / hog.h to extra modules, so the report
+ * struct and the send function are forward-declared here. They have
+ * been stable for a while; if ZMK changes the layout, the build will
+ * either fail at link time or produce a wrong-sized report.
  */
 
 #include <zephyr/kernel.h>
 #include <zephyr/init.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/logging/log.h>
-
-#include <zmk/hid.h>
-#include <zmk/hog.h>
+#include <zephyr/sys/util.h>
+#include <stdint.h>
 
 LOG_MODULE_REGISTER(agent_ios_nudge, CONFIG_ZMK_LOG_LEVEL);
+
+struct zmk_hid_mouse_report_body {
+    uint8_t buttons;
+    int16_t d_x;
+    int16_t d_y;
+    int16_t d_scroll_y;
+    int16_t d_scroll_x;
+} __packed;
+
+extern int zmk_hog_send_mouse_report(struct zmk_hid_mouse_report_body *body);
 
 static struct k_work_delayable nudge_work;
 
