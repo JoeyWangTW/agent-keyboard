@@ -47,19 +47,24 @@ struct nudge_step {
     uint16_t next_delay_ms;
 };
 
+/* Empirically iOS amplified our X moves ~2x and dampened Y to ~0.7x
+ * (with default Pointer Control speed + acceleration). Tuned to land
+ * cursor near the middle of an iPhone 14 (390x844 pts). */
 static const struct nudge_step steps[] = {
-    /* Walk +X across to mid-screen (~150 total). */
-    {  30,   0,  0,  60 },
-    {  30,   0,  0,  60 },
-    {  30,   0,  0,  60 },
-    {  30,   0,  0,  60 },
-    {  30,   0,  0,  100 },
-    /* Walk +Y down to mid-screen (~250 total). */
-    {   0,  50,  0,  60 },
-    {   0,  50,  0,  60 },
-    {   0,  50,  0,  60 },
-    {   0,  50,  0,  60 },
-    {   0,  50,  0,  150 },
+    /* Walk +X right to ~mid-screen. */
+    {  30,   0,  0,  80 },
+    {  30,   0,  0,  120 },
+    /* Walk +Y down to ~mid-screen. */
+    {   0,  60,  0,  60 },
+    {   0,  60,  0,  60 },
+    {   0,  60,  0,  60 },
+    {   0,  60,  0,  60 },
+    {   0,  60,  0,  60 },
+    {   0,  60,  0,  60 },
+    {   0,  60,  0,  60 },
+    {   0,  60,  0,  60 },
+    {   0,  60,  0,  60 },
+    {   0,  60,  0,  150 },
     /* Scroll wake, self-cancelling. */
     {   0,   0,  1,  120 },
     {   0,   0, -1,  120 },
