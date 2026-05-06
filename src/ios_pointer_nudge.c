@@ -3,15 +3,20 @@
  * BLE reconnect, without forcing the user to toggle AT off and on.
  *
  * On security_changed (link encrypted), schedule a small burst of
- * pointer activity over ~1.5s. Empirically a sustained burst of
- * cursor movement plus self-cancelling scroll ticks is enough to
- * wake iOS pointer routing on reconnect, after which scroll from
- * the encoder works in the apps that respect HID scroll (Safari,
- * Mail, Notes, X, scrollable Settings panes, etc.).
+ * pointer activity:
+ *   1. Push the AT cursor away from any idle-parked corner toward
+ *      the middle of the screen, where it will be over scrollable
+ *      content in most apps. Movement is relative + iOS clamps at
+ *      screen edges, so a (+200, +400) push lands in mid-screen on
+ *      typical iPhone sizes regardless of starting position.
+ *   2. Fire a couple of self-cancelling scroll ticks so iOS's
+ *      pointer-routing path sees scroll activity from us.
  *
- * The values here are a balance: small enough that the cursor
- * bounce on reconnect is unobtrusive, large enough to reliably
- * trip iOS's pointer-recognition path.
+ * After this, encoder scroll works without the user having to toggle
+ * AssistiveTouch off and on on each reconnect.
+ *
+ * The cursor visibly drifts toward mid-screen on every iPhone
+ * reconnect — that's the cost of keeping AT routing engaged.
  */
 
 #include <zephyr/kernel.h>
@@ -47,11 +52,12 @@ static void send_report(int16_t dx, int16_t dy, int16_t scroll_y) {
     static void nudge_##N(struct k_work *w) { send_report(DX, DY, SY); }       \
     static K_WORK_DELAYABLE_DEFINE(work_##N, nudge_##N)
 
-/* Net-zero cursor displacement and net-zero scroll. */
-DEF_PULSE(a,   80,    0,  1);
-DEF_PULSE(b,  -80,    0,  0);
-DEF_PULSE(c,    0,   40, -1);
-DEF_PULSE(d,    0,  -40,  0);
+/* Drive cursor into mid-screen, then wake scroll. */
+DEF_PULSE(a,  200,  400,  0);  /* push to middle */
+DEF_PULSE(b,    0,    0,  1);  /* scroll wake down */
+DEF_PULSE(c,    0,    0, -1);  /* scroll wake up */
+DEF_PULSE(d,    5,    5,  0);  /* small twitch keeps cursor visible */
+DEF_PULSE(e,    0,    0,  0);  /* idle */
 
 static void security_changed(struct bt_conn *conn, bt_security_t level,
                              enum bt_security_err err) {
@@ -59,10 +65,11 @@ static void security_changed(struct bt_conn *conn, bt_security_t level,
     if (err || level < BT_SECURITY_L2) {
         return;
     }
-    k_work_reschedule(&work_a, K_MSEC(500));
+    k_work_reschedule(&work_a, K_MSEC(400));
     k_work_reschedule(&work_b, K_MSEC(700));
-    k_work_reschedule(&work_c, K_MSEC(1100));
-    k_work_reschedule(&work_d, K_MSEC(1300));
+    k_work_reschedule(&work_c, K_MSEC(900));
+    k_work_reschedule(&work_d, K_MSEC(1200));
+    k_work_reschedule(&work_e, K_MSEC(1800));
 }
 
 BT_CONN_CB_DEFINE(agent_ios_nudge_cb) = {
